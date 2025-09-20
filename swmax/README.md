@@ -1,61 +1,84 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Тестовое задание (Laravel + PHP 8.1)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+##  Формулировка задачи
+Реализовать сервис поиска **максимума в скользящем окне**.  
 
-## About Laravel
+Дано:
+- массив чисел (`int` или `float`, включая отрицательные);
+- ширина окна `k`.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+Нужно вернуть массив максимумов для каждого сдвига окна слева направо.  
+Решение должно работать за линейное время `O(n)` и с дополнительной памятью `O(k)`.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+**Пример:**
+```php
+$arr = [1, 3, -1, -3, 5, 3, 6, 7];
+$k = 3;
+// Результат: [3, 3, 5, 5, 6, 7]
+```
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## 🏗 Структура проекта и созданные классы
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### 1. Сервис
+**`app/Services/SlidingWindowMaxService.php`**
+- Основная логика алгоритма.
+- Метод:
+  ```php
+  public function compute(array $arr, int $k): array;
+  ```
+- Работает через монотонную двустороннюю очередь (deque):
+  - удаляет из головы индексы, вышедшие за пределы окна;
+  - удаляет из хвоста индексы элементов, меньших либо равных текущему;
+  - максимум окна всегда находится в голове deque.
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### 2. Консольная команда
+**`app/Console/Commands/SlidingWindowMaxCommand.php`**
+- Позволяет запускать алгоритм из CLI.
+- Сигнатура:
+  ```bash
+  php artisan metrics:swmax --k=3 -- 1 3 -1 -3 5 3 6 7
+  ```
+- На выходе:
+  ```
+  3 3 5 5 6 7
+  ```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### 3. Тесты
+**`tests/Unit/SlidingWindowMaxServiceTest.php`**
+- Проверяют корректность работы сервиса.
+- Кейсы:
+  - базовый пример с целыми числами;
+  - массив с float;
+  - `k = 1` (результат = исходный массив);
+  - `k = 0` или `k > n` → исключение;
+  - пустой массив;
+  - массив из одинаковых элементов.
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+##  Как работает код
 
-### Premium Partners
+1. При вызове метода `compute`:
+   - Проверяется валидность параметров (`k > 0` и `k <= n`).
+   - Если массив пустой — возвращается пустой результат.
+2. В цикле:
+   - Из очереди удаляются индексы элементов, которые вышли за пределы окна.
+   - Из хвоста удаляются элементы меньше или равные текущему.
+   - Текущий индекс добавляется в очередь.
+   - Как только размер окна достигает `k`, в результат пишется максимум (элемент по индексу в голове очереди).
+3. Результат возвращается как массив чисел.
+4. В консольной команде входные параметры парсятся из аргументов, затем вызывается сервис и результат выводится строкой.
+5. Unit-тесты прогоняют все основные сценарии, включая пограничные случаи.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+---
 
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+##  Пример запуска
+```bash
+php artisan metrics:swmax --k=3 -- 1 3 -1 -3 5 3 6 7
+```
+Результат:
+```
+3 3 5 5 6 7
+```
